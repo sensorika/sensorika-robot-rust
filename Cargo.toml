@@ -1,0 +1,22 @@
+[package]
+name = "sensorika"
+version = "0.1.0"
+authors = ["troxid <troxid@yandex.ru>"]
+homepage = "https://github.com/sensorika/sensorika-robot-rust"
+repository = "https://github.com/sensorika/sensorika-robot-rust"
+license = "LGPLv3"
+readme = "README.md"
+keywords = ["zmq", "robotics", "middleware"]
+
+[lib]
+name = "sensorika"
+path = "src/lib.rs"
+
+[dependencies.zmq]
+git = "https://github.com/erickt/rust-zmq.git"
+
+[dependencies]
+serde = "0.8"
+serde_json = "0.8"
+serde_macros = "0.8"
+
