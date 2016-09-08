@@ -62,9 +62,10 @@ mod tests{
             assert!(act.is_string());
             assert!(act.as_str().unwrap() == "set");
             let cnt: &Value = req.get("count").unwrap();
+            assert!(cnt.is_number());
             assert!(cnt.as_i64().unwrap()==1);
             let o = ObjectBuilder::new().insert("status","ok").build();
-            sock.send_json(&o);
+            sock.send_json(&o).unwrap();
         }).unwrap();
         let sending = Builder::new().name("send".into()).spawn(move||{
             let mut ctx = zmq::Context::new();
@@ -75,10 +76,15 @@ mod tests{
                 .build();
             sock.connect("tcp://127.0.0.1:5555").unwrap();
             sock.send_json(&o).unwrap();
-            let a:Value = sock.recv_json().unwrap();
+            let rep:Value = sock.recv_json().unwrap();
+            assert!(rep.is_object());
+            let rep : &Map<String, Value> = rep.as_object().unwrap();
+            assert!(rep.contains_key("status"));
+            let st: &Value = rep.get("status").unwrap();
+            assert!(st.is_string());
+            assert!(st.as_str().unwrap() == "ok");
         }).unwrap();
-        sending.join();
-        recieving.join();
-
+        sending.join().unwrap();
+        recieving.join().unwrap();
     }
 }
