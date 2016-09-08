@@ -12,5 +12,5 @@ extern crate serde_json;
 extern crate zmq;
 
 pub mod worker;
-mod util;
+pub mod util;
 
