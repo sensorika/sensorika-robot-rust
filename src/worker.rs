@@ -3,7 +3,7 @@ use std::str;
 use std::error::Error;
 use std::result::*;
 use std::time::SystemTime;
-use std::collections::LinkedList;
+use util::buffered_queue::BufferedQueue;
 
 use zmq::SocketType;
 use zmq::Socket;
@@ -12,8 +12,7 @@ use zmq::Context;
 pub struct Worker {
     context: Context,
     sync_socket: Socket,
-    //Массив, который при переполнении удаляет первые элементы
-    data: Vec<String>, //FIXME:
+    data: BufferedQueue<String>,
     dt: f32,
 }
 
@@ -22,11 +21,15 @@ impl Worker {
         let mut ctx = Context::new();
         let sync_socket = ctx.socket(SocketType::REP);
 
-        panic!(" ");
+        unimplemented!();
+    }
+
+    pub fn add(v: String){
+
     }
 
     pub fn run(self){
-
+        unimplemented!();
     }
 
     // возвращает N последних добавленных элементов
@@ -34,6 +37,6 @@ impl Worker {
     //  ^ ^ ^
     // при N = 3
     pub fn get() -> Vec<String> {
-        panic!(" ");
+        unimplemented!();
     }
 }
