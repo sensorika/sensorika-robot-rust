@@ -1,5 +1,5 @@
-
 extern crate zmq;
+
 
 fn main() {
     println!("ALL OK");
