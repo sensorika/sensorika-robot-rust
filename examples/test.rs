@@ -1,7 +1,13 @@
-extern crate zmq;
+use std::time::SystemTime;
+use std::time::Duration;
+use std::thread;
 
 
-fn main() {
-    println!("ALL OK");
-    let mut ctx = zmq::Context::new();
+fn main(){
+    let t = SystemTime::now();
+    loop{
+        thread::sleep_ms(500);
+        let res = t.elapsed();
+        println!("{:?}",&res);
+    }
 }
