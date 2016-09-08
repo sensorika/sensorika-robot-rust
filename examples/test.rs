@@ -21,6 +21,19 @@ use std::thread::sleep;
 use std::time::Duration;
 
 fn main(){
-
-    println!("Ok");
+    let mut ctx = zmq::Context::new();
+    let mut sock_req: zmq::Socket = ctx.socket(REQ).unwrap();
+    let mut sock_rep: zmq::Socket = ctx.socket(REP).unwrap();
+    sock_rep.bind("tcp://127.0.0.1:5557").unwrap();
+    sock_req.connect("tcp://127.0.0.1:5557").unwrap();
+    sock_req.send_json(&Value::F64(0.0), zmq::DONTWAIT).unwrap();
+    match sock_req.recv_json(zmq::DONTWAIT){
+        Ok(val) => assert!(false),
+        Err(e) => {
+            println!("{:?}", e);
+        }
+    }
+    sock_rep.recv_json(0).unwrap();
+    sock_rep.send_json(&Value::Bool(true), 0).unwrap();
+    sock_req.recv_json(0).unwrap();
 }

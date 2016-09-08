@@ -39,7 +39,7 @@ mod tests{
         let recieving = Builder::new().name("recv".into()).spawn(move||{
             let mut ctx = zmq::Context::new();
             let mut sock: zmq::Socket = ctx.socket(REP).unwrap();
-            sock.bind("tcp://*:5555").unwrap();
+            sock.bind("tcp://*:5556").unwrap();
             for i in 1..10 {
                 let req: Value = sock.recv_json(0).unwrap();
                 assert!(req.is_object());
@@ -58,7 +58,7 @@ mod tests{
         let sending = Builder::new().name("send".into()).spawn(move||{
             let mut ctx = zmq::Context::new();
             let mut sock: zmq::Socket = ctx.socket(REQ).unwrap();
-            sock.connect("tcp://127.0.0.1:5555").unwrap();
+            sock.connect("tcp://127.0.0.1:5556").unwrap();
             for i in 1..10 {
                 let o = ObjectBuilder::new()
                     .insert("action", "set")
@@ -76,5 +76,24 @@ mod tests{
         }).unwrap();
         sending.join().unwrap();
         recieving.join().unwrap();
+    }
+
+    #[test]
+    fn test_async(){
+        let mut ctx = zmq::Context::new();
+        let mut sock_req: zmq::Socket = ctx.socket(REQ).unwrap();
+        let mut sock_rep: zmq::Socket = ctx.socket(REP).unwrap();
+        sock_rep.bind("tcp://127.0.0.1:5557").unwrap();
+        sock_req.connect("tcp://127.0.0.1:5557").unwrap();
+        sock_req.send_json(&Value::F64(0.0), zmq::DONTWAIT).unwrap();
+        match sock_req.recv_json(zmq::DONTWAIT){
+            Ok(val) => assert!(false),
+            Err(e) => {
+
+            }
+        }
+        sock_rep.recv_json(0).unwrap();
+        sock_rep.send_json(&Value::Bool(true), 0).unwrap();
+        sock_req.recv_json(0).unwrap();
     }
 }
