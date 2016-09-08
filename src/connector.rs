@@ -5,7 +5,8 @@ use serde_json::{Value, Map};
 use serde_json::to_string;
 use serde_json::builder::ObjectBuilder;
 use std::fmt::format;
-use util::{now,SendRecvJson};
+use util::time::now;
+use util::sendrecvjson::SendRecvJson;
 
 pub struct Connector {
     context: Context,
@@ -54,7 +55,7 @@ impl Connector {
         self.get_with_dt(0.05)
     }
 
-    fn set(&self, data: Value) -> Result<(), Box<Error>> {
-        Ok(())
+    fn set(&self, data: Value) -> Result<Value, Box<Error>> {
+        Ok(Value::I64(0))
     }
 }

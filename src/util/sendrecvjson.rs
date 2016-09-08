@@ -1,18 +1,9 @@
-
-
-use chrono::*;
 use zmq;
 use serde_json;
 use serde_json::Value;
 use std::str;
 use std::error::Error;
 use std::result::*;
-
-pub fn now() -> f64{
-    let local: DateTime<Local> = Local::now();
-    local.timestamp() as f64 + (local.timestamp_subsec_nanos() as f64 * 1e-9)
-}
-
 pub trait  SendRecvJson{
     fn recv_json(&mut self) -> Result<Value, Box<Error>>;
     fn send_json(&mut self, &Value) -> Result<(), Box<Error>>;

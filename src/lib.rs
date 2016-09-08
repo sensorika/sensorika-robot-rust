@@ -9,7 +9,7 @@ extern crate serde_json;
 extern crate zmq;
 extern crate chrono;
 
-mod connector;
+pub mod connector;
 mod util;
 
 pub use self::connector::Connector;
