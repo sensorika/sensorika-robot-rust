@@ -19,4 +19,4 @@ git = "https://github.com/erickt/rust-zmq.git"
 serde = "0.8"
 serde_json = "0.8"
 serde_macros = "0.8"
-
+chrono = "0.2"
