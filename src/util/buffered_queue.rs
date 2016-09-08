@@ -17,7 +17,7 @@ impl<T: Default + Clone> BufferedQueue<T>{
     /// Когда `size` == 0
     ///
     /// #Example
-    /// ```ingore
+    /// ```ignore
     /// extern crate sensorika;
     /// use sensorika::util::buffered_queue::BufferedQueue;
     ///
@@ -121,79 +121,85 @@ impl<T: Default + Clone> BufferedQueue<T>{
     }
 }
 
-#[test]
-fn test_push_and_take(){
-    let mut b: BufferedQueue<i32> = BufferedQueue::new(4);
-    // b = [0, 0, 0, 0]
-    b.push(10);
-    // b = [10, 0, 0, 0]
-    b.push(10);
-    // b = [10, 10, 0, 0]
-    let first_four_number = b.take(4);
-    assert_eq!(first_four_number, vec![10, 10, 0, 0]);
-}
+#[cfg(test)]
+mod tests{
+    use super::BufferedQueue;
 
-#[test]
-fn test_small_buffer(){
-    let mut b: BufferedQueue<i32> = BufferedQueue::new(1);
-    for i in 0..100_000{
-        b.push(i);
+    #[test]
+    fn test_push_and_take(){
+        let mut b: BufferedQueue<i32> = BufferedQueue::new(4);
+        // b = [0, 0, 0, 0]
+        b.push(10);
+        // b = [10, 0, 0, 0]
+        b.push(10);
+        // b = [10, 10, 0, 0]
+        let first_four_number = b.take(4);
+        assert_eq!(first_four_number, vec![10, 10, 0, 0]);
     }
-    let first = b.take(1);
-    assert_eq!(first, vec![99_999]);
-}
 
-#[test]
-fn test_take_size(){
-    let mut b: BufferedQueue<i32> = BufferedQueue::new(100);
-    for i in 0..100{
-        assert_eq!(b.take(i).len(), i as usize);
-    }
-}
-
-#[test]
-fn test_big_buffer(){
-    let mut b: BufferedQueue<i32> = BufferedQueue::new(1000);
-    let big_n = 10_000_000;
-    for i in 0..big_n {
-        b.push(i);
-    }
-    assert_eq!(b.take(2), vec![big_n - 1, big_n -2]);
-}
-
-#[test]
-fn test_always_same_size(){
-    for size in 1..1000{
-        let mut b: BufferedQueue<i32> = BufferedQueue::new(size);
-        for i in 0..1_000 {
+    #[test]
+    fn test_small_buffer(){
+        let mut b: BufferedQueue<i32> = BufferedQueue::new(1);
+        for i in 0..100_000{
             b.push(i);
-            assert_eq!(b.list.len(), size);
+        }
+        let first = b.take(1);
+        assert_eq!(first, vec![99_999]);
+    }
+
+    #[test]
+    fn test_take_size(){
+        let mut b: BufferedQueue<i32> = BufferedQueue::new(100);
+        for i in 0..100{
+            assert_eq!(b.take(i).len(), i as usize);
         }
     }
+
+    #[test]
+    fn test_big_buffer(){
+        let mut b: BufferedQueue<i32> = BufferedQueue::new(1000);
+        let big_n = 10_000_000;
+        for i in 0..big_n {
+            b.push(i);
+        }
+        assert_eq!(b.take(2), vec![big_n - 1, big_n -2]);
+    }
+
+    #[test]
+    fn test_always_same_size(){
+        for size in 1..1000{
+            let mut b: BufferedQueue<i32> = BufferedQueue::new(size);
+            for i in 0..1_000 {
+                b.push(i);
+                assert_eq!(b.list.len(), size);
+            }
+        }
+    }
+
+    #[test]
+    fn test_take_all(){
+        let size = 10;
+        let mut buffer: BufferedQueue<i32> = BufferedQueue::new(size);
+        assert_eq!(buffer.take_all().len(), size);
+    }
+
+    #[test]
+    fn test_list_size(){
+        let size = 10;
+        let mut buffer: BufferedQueue<i32> = BufferedQueue::new(size);
+        assert_eq!(buffer.list.len(), size as usize);
+    }
+
+    #[test]
+    fn test_all(){
+        let n = 4;
+        let mut buffer: BufferedQueue<i32> = BufferedQueue::new(10);
+        buffer.push(1);
+        buffer.push(2);
+        buffer.push(3);
+        let xs = buffer.take(n);
+        assert_eq!(xs, vec![3, 2, 1, 0]);
+        assert_eq!(xs.len() as u32, n);
+    }
 }
 
-#[test]
-fn test_take_all(){
-    let size = 10;
-    let mut buffer: BufferedQueue<i32> = BufferedQueue::new(size);
-    assert_eq!(buffer.take_all().len(), size);
-}
-
-#[test]
-fn test_list_size(){
-    let size = 10;
-    let mut buffer: BufferedQueue<i32> = BufferedQueue::new(size);
-    assert_eq!(buffer.list.len(), size as usize);
-}
-
-#[test]
-fn test_all(){
-    let n = 4;
-    let mut buffer: BufferedQueue<i32> = BufferedQueue::new(10);
-    buffer.push(1);
-    buffer.push(2);
-    buffer.push(3);
-    let xs = buffer.take(n);
-    assert_eq!(xs, vec![3, 2, 1, 0]);
-    assert_eq!(xs.len() as u32, n);
-}

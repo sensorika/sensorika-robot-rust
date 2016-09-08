@@ -4,10 +4,15 @@ use std::error::Error;
 use std::result::*;
 use std::time::SystemTime;
 use util::buffered_queue::BufferedQueue;
+use util::sendrecvjson::SendRecvJson;
+use serde_json::{Value, Map};
+use serde_json;
+use std::str::FromStr;
 
 use zmq::SocketType;
 use zmq::Socket;
 use zmq::Context;
+use zmq::DONTWAIT;
 
 pub struct Worker {
     context: Context,
@@ -17,26 +22,41 @@ pub struct Worker {
 }
 
 impl Worker {
-    pub fn new() -> Worker {
+    pub fn new(ip: &str, port: u32) -> Result<Worker, Box<Error>> {
         let mut ctx = Context::new();
-        let sync_socket = ctx.socket(SocketType::REP);
+        let mut sync_socket: Socket = try!(ctx.socket(SocketType::REP));
 
+        //FIXME:
         unimplemented!();
     }
 
-    pub fn add(v: String){
-
+    /// Добавляет новое значение
+    pub fn add(&mut self, v: &Value){
+        if let Ok(str) = serde_json::to_string(&v){
+            self.data.push(str);
+        }
     }
 
-    pub fn run(self){
+    /// Возвращает N последних присланных сообщений
+    pub fn get(&self, n: u32) -> Vec<Value> {
+        let mut result: Vec<Value> = Vec::new();
+        let json_strings: Vec<String> = self.data.take(n);
+        for str in json_strings {
+            if let Ok(v) = Value::from_str(str.as_ref()){
+                result.push(v);
+            }
+        }
+        result
+    }
+
+    pub fn populate(&self){
+        //FIXME:
         unimplemented!();
     }
 
-    // возвращает N последних добавленных элементов
-    // [1,2,3,4,5,6,7,8,9]
-    //  ^ ^ ^
-    // при N = 3
-    pub fn get() -> Vec<String> {
+    pub fn run(&self){
+        //FIXME:
         unimplemented!();
     }
 }
+
