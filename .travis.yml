@@ -1,3 +1,4 @@
+sudo: false
 language: rust
 rust:
   - beta
@@ -5,3 +6,8 @@ rust:
 matrix:
   allow_failures:
     - rust: beta
+addons:
+  apt:
+    packages:
+      - libzmq1
+      - libzmq-dev
