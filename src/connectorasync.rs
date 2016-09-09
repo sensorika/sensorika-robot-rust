@@ -18,6 +18,7 @@ pub struct ConnectorAsync {
     stop_event : Arc<AtomicBool>
 }
 
+//noinspection RustSelfConvention
 impl ConnectorAsync {
     pub fn new<F>(ip: String, port: i32, mut f: F) -> Result<ConnectorAsync, Box<Error>>
         where for<'r> F: FnMut(&'r mut Value) -> (), F: Send + 'static
