@@ -5,6 +5,12 @@ use std::str;
 use std::error::Error;
 use std::result::*;
 
+#[derive(Copy, Clone)]
+enum SendRecvMode{
+    Block = 0,
+    NonBlock = 1,
+}
+
 pub trait  SendRecvJson{
     fn recv_json(&mut self, i32) -> Result<Value, Box<Error>>;
     fn send_json(&mut self, &Value, i32) -> Result<(), Box<Error>>;

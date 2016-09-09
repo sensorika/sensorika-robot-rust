@@ -8,6 +8,8 @@ use util::sendrecvjson::SendRecvJson;
 use serde_json::{Value, Map};
 use serde_json;
 use std::str::FromStr;
+use std::thread;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use zmq::SocketType;
 use zmq::Socket;
@@ -15,10 +17,13 @@ use zmq::Context;
 use zmq::DONTWAIT;
 
 pub struct Worker {
-    context: Context,
-    sync_socket: Socket,
-    data: BufferedQueue<String>,
     dt: f32,
+    timer_count: u32,
+    data: BufferedQueue<String>,
+    sync_socket: Socket,
+    context: Context,
+    /// Флаг для остановки потока `worker`
+    is_end: AtomicBool,
 }
 
 impl Worker {
@@ -54,9 +59,26 @@ impl Worker {
         unimplemented!();
     }
 
-    pub fn run(&self){
-        //FIXME:
-        unimplemented!();
+    pub fn run(&mut self){
+        let _ = thread::spawn(move ||{
+            loop{
+                thread::sleep_ms(100);
+                self.timer_count += 100;
+                if self.timer_count > 2000 {
+                    self.timer_count = 0;
+                }
+                if self.is_end.load(Ordering::Relaxed) {
+                    panic!("end of thread");
+                }
+                self.populate();
+            }
+        });
+    }
+}
+
+impl Drop for Worker {
+    fn drop(&mut self){
+        self.is_end.store(true, Ordering::Relaxed);
     }
 }
 
