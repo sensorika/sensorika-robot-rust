@@ -17,6 +17,7 @@ pub struct Connector {
     context: Context
 }
 
+//noinspection RustSelfConvention
 impl Connector {
     pub fn new(ip: String, port: i32) -> Result<Connector, Box<Error>> {
         let mut context = Context::new();

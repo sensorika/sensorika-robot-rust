@@ -14,7 +14,9 @@ extern crate chrono;
 pub mod worker;
 pub mod util;
 pub mod connector;
+pub mod connectorasync;
 
 pub use self::connector::Connector;
+pub use self::connectorasync::ConnectorAsync;
 pub use self::worker::Worker;
 
