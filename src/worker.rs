@@ -242,7 +242,6 @@ mod tests{
     #[test]
     fn test_worker(){
         let h = thread::Builder::new().name("test worker".into()).spawn(move||{
-            let w = Worker::new();
 
         }).unwrap();
         h.join().unwrap();
