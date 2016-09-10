@@ -6,7 +6,7 @@ use std::error::Error;
 use std::result::*;
 
 #[derive(Copy, Clone)]
-enum SendRecvMode{
+pub enum SendRecvMode{
     Block = 0,
     NonBlock = 1,
 }
