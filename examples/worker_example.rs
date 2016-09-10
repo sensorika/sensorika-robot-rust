@@ -5,6 +5,6 @@ use sensorika::worker::Worker;
 use sensorika::util::buffered_queue::BufferedQueue;
 
 fn main() {
-    let mut w = Worker::new("localhost", 15701);
+    let mut w = Worker::new("test", "localhost", 15701);
 
 }

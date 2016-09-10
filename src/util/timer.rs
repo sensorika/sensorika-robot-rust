@@ -53,8 +53,8 @@ mod tests{
             let c_r1 = counter.clone();
             sleep(3001);
             let n = c_r1.lock().unwrap();
-            assert_eq!(*n, 3);
-        });
-        r.unwrap().join().unwrap();
+            assert_eq!(*n, 1);
+        }).unwrap();
+        r.join().unwrap();
     }
 }

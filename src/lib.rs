@@ -15,6 +15,7 @@ pub mod worker;
 pub mod util;
 pub mod connector;
 pub mod connectorasync;
+pub mod message;
 
 pub use self::connector::Connector;
 pub use self::connectorasync::ConnectorAsync;
