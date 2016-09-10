@@ -189,14 +189,17 @@ mod tests{
             s.send_json(&o,0).unwrap();
 
         }).unwrap();
-        let mut c = Connector::to_locator("127.0.0.1".into()).unwrap();
-        let rep: Value = c.set(Value::I64(100500)).unwrap();
-        assert!(rep.is_object());
-        let rep: &Map<String, Value> = rep.as_object().unwrap();
-        assert!(rep.contains_key("status"));
-        let st: &Value = rep.get("status").unwrap();
-        assert!(st.is_string());
-        assert!(st.as_str().unwrap() == "ok");
+        let conn = Builder::new().name("conn".into()).spawn(move || {
+            let mut c = Connector::to_locator("127.0.0.1".into()).unwrap();
+            let rep: Value = c.set(Value::I64(100500)).unwrap();
+            assert!(rep.is_object());
+            let rep: &Map<String, Value> = rep.as_object().unwrap();
+            assert!(rep.contains_key("status"));
+            let st: &Value = rep.get("status").unwrap();
+            assert!(st.is_string());
+            assert!(st.as_str().unwrap() == "ok");
+        }).unwrap();
         serv.join().unwrap();
+        conn.join().unwrap();
     }
 }
