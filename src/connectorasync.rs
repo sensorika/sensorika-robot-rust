@@ -118,7 +118,7 @@ mod tests{
                 match i {
                     0 => { assert!(d1.len() == 2) },
                     1 => { assert!(d1.len() == 3)},
-                    3 => { assert!(d1.len() == 1)},
+                    2 => { assert!(d1.len() == 1)},
                     _ => {panic!("too much data!")}
                 }
             });
