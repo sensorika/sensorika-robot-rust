@@ -30,32 +30,26 @@ enum ChunckOrAck{
 }
 
 #[derive(Clone)]
-pub struct ChunkData {
+pub struct ChunkData<T> {
     /// Время когда пришла комманда\отправились данные
     /// Формат: UNIX-время
     pub occur_time: f64,
-    /// Строка содержащая валидный JSON
-    pub json_data: String
+    pub data: T
 }
 
-impl ChunkData {
-    fn new(data: String) -> Self{
+impl<T: Clone> ChunkData<T> {
+    fn new(data: T) -> Self{
         ChunkData {
             occur_time: time::now(),
-            json_data: data
+            data: T
         }
     }
 
-    fn to_tuple(&self) -> (f64, String){
-        (self.occur_time, self.json_data.clone())
+    fn to_tuple(&self) -> (f64, T){
+        (self.occur_time, self.data.clone())
     }
 }
 
-impl Default for ChunkData {
-    fn default() -> Self {
-        ChunkData::new(r#"{"empty":null}"#.into())
-    }
-}
 
 struct InnerWorker{
     name: String,
@@ -210,6 +204,9 @@ impl Drop for Worker {
 }
 
 /*
+Этот текст будет удален когда я удостоверюсь на 100%, что
+текущая многопоточная реализация воркера нормально работает.
+
 Есть некоторые проблемы с многопоточностью
 состояния воркера шарятся между двумя/тремя тредами:
 мэин тред, тред под цикл обработчика + опц под отдельный таймер
@@ -227,6 +224,13 @@ add будет передавать значеия в поток цикла че
 у get будет блокирующий канал. поток цикла будет
 ждать пока прочитают последния значения, а затем загружать в канал новые.
 
+Ответ с гиттера:
+@Troxid насчёт scoped, суть в следующем: для обычных потоков (thread:: spawn)существует проблема,
+что нельзя в него передать не static ссылки, т.к. дочерний поток может пережить основной.
+В случае thread::scoped, все дочерние потоки должны будут умереть раньше основного,
+из-за этого им можно передавать ссылки из основного. Ну а насчёт синхронизации,
+то способов синхронизации уйма, тут уж по нужде/желанию, проще всего использовать каналы,
+они собственно для этого и нужны.
 */
 
 #[cfg(test)]
