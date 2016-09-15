@@ -9,6 +9,8 @@ use util::sendrecvjson::SendRecvJson;
 use util::sendrecvjson::SendRecvMode;
 use serde_json::{Value, Map};
 use serde_json;
+use serde::de::Deserialize;
+use serde::ser::Serialize;
 use std::str::FromStr;
 use std::thread;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -22,14 +24,14 @@ use zmq::Socket;
 use zmq::Context;
 use zmq::DONTWAIT;
 
-type SafeWorker = Arc<Mutex<InnerWorker>>;
+type SafeWorker<T> = Arc<Mutex<InnerWorker<T>>>;
 
-enum ChunckOrAck{
-    Chunks(Vec<ChunkData>),
+enum ChunckOrAck<T>{
+    Chunks(Vec<ChunkData<T>>),
     Ack(AckMsg),
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ChunkData<T> {
     /// Время когда пришла комманда\отправились данные
     /// Формат: UNIX-время
@@ -37,11 +39,11 @@ pub struct ChunkData<T> {
     pub data: T
 }
 
-impl<T: Clone> ChunkData<T> {
+impl<T: Serialize + Deserialize + Clone + Send> ChunkData<T> {
     fn new(data: T) -> Self{
         ChunkData {
             occur_time: time::now(),
-            data: T
+            data: data
         }
     }
 
@@ -51,21 +53,22 @@ impl<T: Clone> ChunkData<T> {
 }
 
 
-struct InnerWorker{
+struct InnerWorker<T>{
     name: String,
     dt: f32,
     timer_count: u32,
-    data: BufferedQueue<ChunkData>,
-    commands: BufferedQueue<ChunkData>,
+    data: BufferedQueue<ChunkData<T>>,
+    commands: BufferedQueue<ChunkData<T>>,
     is_end: AtomicBool,
     sync_socket: Socket,
     context: Context,
 }
 
-impl InnerWorker {
-    fn new(name: &str, ip: &str, port: u32) -> Result<SafeWorker, Box<Error>> {
+impl<T: Serialize + Deserialize + Clone + Send + 'static> InnerWorker<T> {
+    fn new(name: &str, ip: &str, port: u32) -> Result<SafeWorker<T>, Box<Error>> {
         let mut ctx = Context::new();
         let mut sync_socket: Socket = try!(ctx.socket(SocketType::REP));
+        try!(sync_socket.bind(&format!("tcp://{}:{}", ip, port)));
         let mut inner_worker = InnerWorker{
             name: name.into(),
             dt: 0.001,
@@ -92,8 +95,9 @@ impl InnerWorker {
                     break;
                 }
                 // RECV, ROUTE AND SEND MSG
-                let mut resp_msg = ChunckOrAck::Chunks(Vec::default());
+                let mut resp_msg = ChunckOrAck::Ack(AckMsg::wrong());
                 if let Ok(v) = w.sync_socket.recv_json(DONTWAIT) {
+                    println!("recv");
                     if let Ok(recv_msg) = serde_json::from_value(v){
                         resp_msg = w.route(recv_msg);
                     }else{
@@ -103,10 +107,10 @@ impl InnerWorker {
                     w.send_result_msg(resp_msg);
                 }
                 w.populate();
-                w.timer_count += 100;
+                w.timer_count += 10;
                 // LOCK OFF
                 drop(w);
-                thread::sleep_ms(100);
+                thread::sleep_ms(10);
             }
         });
         let iw2 = thread_safe_worker.clone();
@@ -117,20 +121,20 @@ impl InnerWorker {
 
     }
 
-    fn route(&mut self, msg: Msg) -> ChunckOrAck {
+    fn route(&mut self, msg: Msg) -> ChunckOrAck<T> {
         match msg {
             Msg{action: Actions::call, ..} => unimplemented!(),
             Msg{action: Actions::source, ..} => unimplemented!(),
             Msg{action: Actions::line, ..} => unimplemented!(),
             Msg{action: Actions::get, count: Some(c), ..} => {
-                return ChunckOrAck::Chunks(self.data.take(c));
+                return ChunckOrAck::Chunks(self.data.take(1));
             },
             Msg{action: Actions::get, count: None, ..} => {
                 return ChunckOrAck::Chunks(self.data.take(1));
             },
             Msg{action: Actions::set, count: None, data: Some(value) } => {
-                if let Ok(str) = serde_json::from_value(value) {
-                    self.commands.push(ChunkData::new(str));
+                if let Ok(new_data) = serde_json::from_value::<T>(value) {
+                    self.commands.push(ChunkData::new(new_data));
                     return ChunckOrAck::Ack(AckMsg::ok());
                 }else{
                     return ChunckOrAck::Ack(AckMsg::wrong());
@@ -143,7 +147,7 @@ impl InnerWorker {
         }
     }
 
-    fn send_result_msg(&mut self, resp_msg: ChunckOrAck){
+    fn send_result_msg(&mut self, resp_msg: ChunckOrAck<T>){
         match resp_msg {
             ChunckOrAck::Ack(ack) =>{
                 let v = serde_json::to_value(&ack);
@@ -151,7 +155,7 @@ impl InnerWorker {
             },
 
             ChunckOrAck::Chunks(chuncks) =>{
-                let chks: Vec<(f64, String)> = chuncks
+                let chks: Vec<(f64, T)> = chuncks
                     .into_iter()
                     .map(|c| c.to_tuple())
                     .collect();
@@ -160,43 +164,34 @@ impl InnerWorker {
             },
         }
     }
+
 }
 
-pub struct Worker {
-    inner_worker: SafeWorker
+pub struct Worker<T> {
+    inner_worker: SafeWorker<T>
 }
 
-impl Worker {
-    pub fn new(name: &str, ip: &str, port: u32) -> Result<Worker, Box<Error>>{
+impl<T: Serialize + Deserialize + Clone + Send + 'static> Worker<T> {
+    pub fn new(name: &str, ip: &str, port: u32) -> Result<Worker<T>, Box<Error>>{
         let iw = try!(InnerWorker::new(name, ip, port));
         Ok(Worker{inner_worker: iw})
     }
 
     /// Добавляет новое значение
-    pub fn add(&mut self, v: &Value){
+    pub fn add(&mut self, v: T){
         let mut w = self.inner_worker.lock().unwrap();
-        if let Ok(str) = serde_json::to_string(&v){
-            w.data.push(ChunkData::new(str));
-        }
+        w.data.push(ChunkData::new(v));
     }
 
     /// Возвращает N последних присланных сообщений
-    pub fn get(&self, n: u32) -> Vec<ChunkData> {
+    pub fn get(&self, n: u32) -> Vec<ChunkData<T>> {
         let mut w = self.inner_worker.lock().unwrap();
-//        let mut result: Vec<Value> = Vec::new();
-//        let json_strings: Vec<String> = w.data.take(n);
-//        for str in json_strings {
-//            if let Ok(v) = Value::from_str(str.as_ref()){
-//                result.push(v);
-//            }
-//        }
-//        result
         w.data.take(n)
     }
 
 }
 
-impl Drop for Worker {
+impl<T> Drop for Worker<T> {
     fn drop(&mut self){
         let mut w = self.inner_worker.lock().unwrap();
         w.is_end.store(true, Ordering::Relaxed);
@@ -249,5 +244,6 @@ mod tests{
 
         }).unwrap();
         h.join().unwrap();
+        println!("hello ");
     }
 }
