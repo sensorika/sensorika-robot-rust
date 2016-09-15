@@ -13,7 +13,7 @@ name = "sensorika"
 path = "src/lib.rs"
 
 [dependencies.zmq]
-git = "https://github.com/erickt/rust-zmq.git"
+git = "https://github.com/ASMfreaK/rust-zmq"
 
 [dependencies]
 serde = "0.8"
