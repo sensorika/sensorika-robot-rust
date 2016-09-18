@@ -1,5 +1,6 @@
 use std::collections::LinkedList;
 
+#[derive(Debug)]
 pub struct BufferedQueue<T>{
     list: LinkedList<T>,
     size: usize
@@ -35,7 +36,7 @@ impl<T: Clone> BufferedQueue<T>{
     /// Добавляет в очередь один элемент.
     /// Если очередь переполнена, то
     /// элементы, которые находятся
-    /// в конце очереди (слева) - уничтожаются.
+    /// в конце очереди (справа) - уничтожаются.
     ///
     /// # Arguments
     /// * `el` - добавляемый элемент
@@ -64,7 +65,7 @@ impl<T: Clone> BufferedQueue<T>{
         }
     }
 
-    /// Возвращает N первых элементов из очереди (справа).
+    /// Возвращает N первых элементов из очереди (слева).
     /// Где N - `size`
     ///
     /// #Arguments
@@ -209,6 +210,20 @@ mod tests{
             }
             buffer.push(i as u32);
         }
+    }
+
+    #[test]
+    fn test_take_safe(){
+        let n = 4;
+        let mut buffer = BufferedQueue::<u32>::new(n);
+        for i in 0..5 {
+            buffer.push(i);
+        }
+        assert_eq!(buffer.take_all(), vec![4,3,2,1]);
+        let _ = buffer.take_all();
+        assert_eq!(buffer.take_all(), vec![4,3,2,1]);
+        let _ = buffer.take(2);
+        assert_eq!(buffer.take_all(), vec![4,3,2,1]);
     }
 }
 

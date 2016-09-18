@@ -18,6 +18,7 @@ use std::thread::JoinHandle;
 use std::sync::Arc;
 use std::sync::Mutex;
 use super::message::{Msg, Actions, AckMsg};
+use std::fmt::Debug;
 
 use zmq::SocketType;
 use zmq::Socket;
@@ -31,7 +32,7 @@ enum ChunckOrAck<T>{
     Ack(AckMsg),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ChunkData<T> {
     /// Время когда пришла комманда\отправились данные
     /// Формат: UNIX-время
@@ -64,7 +65,7 @@ struct InnerWorker<T>{
     context: Context,
 }
 
-impl<T: Serialize + Deserialize + Clone + Send + 'static> InnerWorker<T> {
+impl<T: Serialize + Deserialize + Clone + Send + 'static + Debug> InnerWorker<T> {
     fn new(name: &str, ip: &str, port: u32) -> Result<SafeWorker<T>, Box<Error>> {
         let mut ctx = Context::new();
         let mut sync_socket: Socket = try!(ctx.socket(SocketType::REP));
@@ -97,7 +98,6 @@ impl<T: Serialize + Deserialize + Clone + Send + 'static> InnerWorker<T> {
                 // RECV, ROUTE AND SEND MSG
                 let mut resp_msg = ChunckOrAck::Ack(AckMsg::wrong());
                 if let Ok(v) = w.sync_socket.recv_json(DONTWAIT) {
-                    println!("recv");
                     if let Ok(recv_msg) = serde_json::from_value(v){
                         resp_msg = w.route(recv_msg);
                     }else{
@@ -108,15 +108,13 @@ impl<T: Serialize + Deserialize + Clone + Send + 'static> InnerWorker<T> {
                 }
                 w.populate();
                 w.timer_count += 10;
-                // LOCK OFF
-                drop(w);
-                thread::sleep_ms(10);
             }
         });
         let iw2 = thread_safe_worker.clone();
         Ok(iw2)
     }
 
+    //TODO: implement populate
     fn populate(&self){
 
     }
@@ -127,7 +125,7 @@ impl<T: Serialize + Deserialize + Clone + Send + 'static> InnerWorker<T> {
             Msg{action: Actions::source, ..} => unimplemented!(),
             Msg{action: Actions::line, ..} => unimplemented!(),
             Msg{action: Actions::get, count: Some(c), ..} => {
-                return ChunckOrAck::Chunks(self.data.take(1));
+                return ChunckOrAck::Chunks(self.data.take(c));
             },
             Msg{action: Actions::get, count: None, ..} => {
                 return ChunckOrAck::Chunks(self.data.take(1));
@@ -171,7 +169,7 @@ pub struct Worker<T> {
     inner_worker: SafeWorker<T>
 }
 
-impl<T: Serialize + Deserialize + Clone + Send + 'static> Worker<T> {
+impl<T: Serialize + Deserialize + Clone + Send + 'static + Debug> Worker<T> {
     pub fn new(name: &str, ip: &str, port: u32) -> Result<Worker<T>, Box<Error>>{
         let iw = try!(InnerWorker::new(name, ip, port));
         Ok(Worker{inner_worker: iw})
@@ -183,10 +181,10 @@ impl<T: Serialize + Deserialize + Clone + Send + 'static> Worker<T> {
         w.data.push(ChunkData::new(v));
     }
 
-    /// Возвращает N последних присланных сообщений
+    /// Возвращает N последних присланных команд
     pub fn get(&self, n: u32) -> Vec<ChunkData<T>> {
         let mut w = self.inner_worker.lock().unwrap();
-        w.data.take(n)
+        w.commands.take(n)
     }
 
 }
@@ -231,19 +229,124 @@ add будет передавать значеия в поток цикла че
 #[cfg(test)]
 mod tests{
 
+    use zmq;
+    use serde_json;
     use std::thread;
     use zmq::SocketType;
     use zmq::Socket;
     use zmq::Context;
     use zmq::DONTWAIT;
-    use super::Worker;
+    use message::Msg;
+    use util::sendrecvjson::SendRecvJson;
+    use worker::Worker;
+    use serde_json::Value;
+    use serde_json::builder::ObjectBuilder;
+    use std::fmt::Debug;
+
+    static IP: &'static str = "127.0.0.1";
+    const PORT: u32 = 15701;
+
+    fn create_and_send(msg: &Msg, port: u32) -> Value {
+        let mut c = zmq::Context::new();
+        let mut s: zmq::Socket = c.socket(SocketType::REQ).unwrap();
+        s.connect(format!("tcp://{}:{}", IP, PORT).as_str()).unwrap();
+
+        let v = serde_json::to_value(msg);
+        println!("value client REQ: {:?}", &v);
+        s.send_json(&v, 0).unwrap();
+        thread::sleep_ms(200);
+        s.recv_json(0).unwrap()
+    }
+
 
     #[test]
-    fn test_worker(){
-        let h = thread::Builder::new().name("test worker".into()).spawn(move||{
+    fn test_get_from_client(){
+        let port = PORT;
+        let mut w = Worker::<i32>::new("test", IP, port).unwrap();
+        for i in 0..10 {
+            w.add(i);
+        }
 
-        }).unwrap();
-        h.join().unwrap();
-        println!("hello ");
+        let v: Value = create_and_send(&Msg::get(3), port);
+        let data0 = v.pointer("/0/1").unwrap().as_u64();
+        let data1 = v.pointer("/1/1").unwrap().as_u64();
+        let data2 = v.pointer("/2/1").unwrap().as_u64();
+
+        assert_eq!(data0, Some(9));
+        assert_eq!(data1, Some(8));
+        assert_eq!(data2, Some(7));
+    }
+
+    #[test]
+    fn test_format_msg(){
+        let port = PORT + 1;
+        let mut w = Worker::<i32>::new("test", IP, port).unwrap();
+        for i in 0..10 {
+            w.add(i);
+        }
+
+        let v: Value = create_and_send(&Msg::get(1), port);
+        let data0 = v.pointer("/0/1").unwrap().as_u64();
+        let time0 = v.pointer("/0/0").unwrap().as_f64().unwrap();
+
+        // fail, if you can travel back in time ( ͡° ͜ʖ ͡°)
+        assert!(time0 > 1474196199f64);
+        assert_eq!(data0, Some(9));
+    }
+
+    #[test]
+    fn test_set_and_get_local(){
+        let port = PORT + 2;
+        let mut w: Worker<i64> = Worker::<i64>::new("test", IP, port).unwrap();
+
+        let v: Value = create_and_send(&Msg::set(Value::I64(99)), port);
+        let status = v.pointer("/status").unwrap().as_str();
+        assert_eq!(status, Some("ok"));
+        let data0 = w.get(10)[0].data;
+        assert_eq!(data0, 99);
+    }
+
+    #[test]
+    fn test_set_and_get(){
+        let port = PORT + 3;
+        let mut w: Worker<i64> = Worker::<i64>::new("test", IP, port).unwrap();
+
+        let mut c = zmq::Context::new();
+        let mut s: zmq::Socket = c.socket(SocketType::REQ).unwrap();
+        s.connect(format!("tcp://{}:{}", IP, port).as_str()).unwrap();
+
+        // Send commands from connector to worker
+        for i in 0..10{
+            let mut v = serde_json::to_value(&Msg::set(Value::I64(i)));
+            println!("value client REQ: {:?}", &v);
+            s.send_json(&v, 0).unwrap();
+            let v: Value = s.recv_json(0).unwrap();
+            let status = v.pointer("/status").unwrap().as_str();
+            assert_eq!(status, Some("ok"));
+        }
+
+        // Worker compute commands
+        let res: Vec<i64> = w.get(10).into_iter().map(|ch| ch.data + 10).collect();
+        for el in res.into_iter().rev() {
+            w.add(el);
+        }
+
+        // Connector wants get computed data
+        let mut v = serde_json::to_value(&Msg::get(3));
+        s.send_json(&v, 0).unwrap();
+        let v: Value = s.recv_json(0).unwrap();
+        println!("{:?}", &v);
+
+        let data0 = v.pointer("/0/1").unwrap().as_i64();
+        let data1 = v.pointer("/1/1").unwrap().as_i64();
+        let data2 = v.pointer("/2/1").unwrap().as_i64();
+
+        assert_eq!(data0, Some(9 + 10));
+        assert_eq!(data1, Some(8 + 10));
+        assert_eq!(data2, Some(7 + 10));
+    }
+
+    fn d<T: Debug>(any: T){
+        println!("d: {:?}", any);
     }
 }

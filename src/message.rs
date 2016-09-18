@@ -32,8 +32,8 @@ impl Msg {
         Msg{action: Actions::get, count: Some(n), data: None}
     }
 
-    pub fn set(n: u32, data: Value) -> Self {
-        Msg{action: Actions::set, count: Some(n), data: Some(data)}
+    pub fn set(data: Value) -> Self {
+        Msg{action: Actions::set, count: None, data: Some(data)}
     }
 }
 

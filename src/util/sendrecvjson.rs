@@ -9,6 +9,7 @@ use std::result::*;
 pub enum SendRecvMode{
     Block = 0,
     NonBlock = 1,
+    SendMore = 2,
 }
 
 pub trait  SendRecvJson{
