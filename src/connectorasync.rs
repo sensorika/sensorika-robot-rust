@@ -38,10 +38,8 @@ impl ConnectorAsync {
             .spawn(move ||{
                 let mut context = context;
                 let mut socket = socket;
-                println!("started into loop!");
                 while !their_stop.load(Ordering::SeqCst){
                     if socket.poll(zmq::POLLIN, 1000).unwrap()>0 {
-                        println!("Got data, recv!");
                         let mut v: Value = socket.recv_json(0).unwrap();
                         if v.is_array(){
                             let mut a: &mut Vec<Value> = v.as_array_mut().unwrap();
@@ -57,8 +55,6 @@ impl ConnectorAsync {
                             v = Value::Array(vec![v1, v]);
                         }
                         {f(&mut v);}
-                    }else{
-                        println!("No data, loop!");
                     }
                 }
             }).unwrap();
@@ -129,26 +125,21 @@ mod tests{
         let mut val = Vec::<Value>::new();
         val.push(Value::F64(now()));
         val.push(Value::Null);
-        println!("Sending!");
         s.send_json(&Value::Array(val), 0).unwrap();
         let mut val = Vec::<Value>::new();
         val.push(Value::Array(vec![Value::F64(now()),Value::F64(now())]));
         val.push(Value::Null);
-        println!("Sending!");
         s.send_json(&Value::Array(val), 0).unwrap();
         s.send_json(&Value::Null, 0).unwrap();
-        println!("Waiting result!");
         loop {
             match recv.recv() {
                 Ok(v) => {
-                    println!("Recvd {:?}", v);
                     assert!(v.0);
                     if v.1 == 3 {
                         break;
                     }
                 },
                 Err(e) => {
-                    //println!("{:?}", e);
                     panic!("Connector exited too early! {}", e);
                     break;
                 }
