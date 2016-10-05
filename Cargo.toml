@@ -1,7 +1,7 @@
 [package]
 name = "sensorika"
 version = "0.1.0"
-authors = ["troxid <troxid@yandex.ru>"]
+authors = ["troxid <troxid@yandex.ru>", "ASMfreak <cpp.create@gmail.com>"]
 homepage = "https://github.com/sensorika/sensorika-robot-rust"
 repository = "https://github.com/sensorika/sensorika-robot-rust"
 license = "LGPLv3"

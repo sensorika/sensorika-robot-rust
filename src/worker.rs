@@ -244,7 +244,7 @@ mod tests{
     use std::fmt::Debug;
 
     static IP: &'static str = "127.0.0.1";
-    const PORT: u32 = 15701;
+    const PORT: u32 = 18000;
 
     fn create_and_send(msg: &Msg, port: u32) -> Value {
         let mut c = zmq::Context::new();
