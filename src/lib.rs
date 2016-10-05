@@ -4,8 +4,7 @@
 #![allow(unused_mut)]
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
-#![feature(plugin, custom_derive)]
-#![plugin(serde_macros)]
+#![feature(rustc_macro)]
 
 extern crate serde;
 extern crate serde_json;
