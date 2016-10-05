@@ -4,9 +4,10 @@
 #![allow(unused_mut)]
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
-#![feature(plugin, custom_derive)]
-#![plugin(serde_macros)]
+#![feature(rustc_macro)]
 
+#[macro_use]
+extern crate serde_derive;
 extern crate serde_json;
 extern crate zmq;
 extern crate chrono;
