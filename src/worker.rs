@@ -249,12 +249,16 @@ mod tests{
     fn create_and_send(msg: &Msg, port: u32) -> Value {
         let mut c = zmq::Context::new();
         let mut s: zmq::Socket = c.socket(SocketType::REQ).unwrap();
-        s.connect(format!("tcp://{}:{}", IP, PORT).as_str()).unwrap();
-
+        d(line!());
+        s.connect(format!("tcp://{}:{}", IP, port).as_str()).unwrap();
+        d(line!());
         let v = serde_json::to_value(msg);
         println!("value client REQ: {:?}", &v);
+        d(line!());
         s.send_json(&v, 0).unwrap();
+        d(line!());
         thread::sleep_ms(200);
+        d(line!());
         s.recv_json(0).unwrap()
     }
 
@@ -298,9 +302,11 @@ mod tests{
     fn test_set_and_get_local(){
         let port = PORT + 2;
         let mut w: Worker<i64> = Worker::<i64>::new("test", IP, port).unwrap();
-
+        d(line!());
         let v: Value = create_and_send(&Msg::set(Value::I64(99)), port);
+        d(line!());
         let status = v.pointer("/status").unwrap().as_str();
+        d(line!());
         assert_eq!(status, Some("ok"));
         let data0 = w.get(10)[0].data;
         assert_eq!(data0, 99);
