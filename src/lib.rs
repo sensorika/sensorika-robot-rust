@@ -12,6 +12,7 @@ extern crate serde;
 extern crate serde_json;
 extern crate zmq;
 extern crate chrono;
+extern crate rand;
 
 pub mod worker;
 pub mod util;
