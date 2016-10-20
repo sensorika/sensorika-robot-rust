@@ -7,7 +7,6 @@ use util::time;
 use util::buffered_queue::BufferedQueue;
 use util::sendrecvjson::SendRecvJson;
 use util::sendrecvjson::SendRecvMode;
-use util::bindrandomport::BindRandomPort;
 use serde_json::{Value, Map};
 use serde_json;
 use serde::de::Deserialize;
@@ -25,6 +24,15 @@ use zmq::SocketType;
 use zmq::Socket;
 use zmq::Context;
 use zmq::DONTWAIT;
+use zmq;
+
+use ini::Ini;
+use ini::ini::Properties;
+
+use std::net::TcpStream;
+use rand;
+use rand::distributions::{IndependentSample, Range};
+use util::bindrandomport::*;
 
 type SafeWorker<T> = Arc<Mutex<InnerWorker<T>>>;
 
@@ -170,10 +178,53 @@ pub struct Worker<T> {
     inner_worker: SafeWorker<T>
 }
 
-impl<T: Serialize + Deserialize + Clone + Send + 'static + Debug> Worker<T> {
+fn is_exist_ini_config() -> bool {
+    Ini::load_from_file(".workerrc").is_ok()
+}
+
+fn get_random_available_port() -> u16 {
+    let mut ctx: Context = zmq::Context::new();
+    let mut sock: Socket = ctx.socket(SocketType::ROUTER).unwrap();
+    let r = sock.bind_to_random_port("tcp://127.0.0.1");
+    r.unwrap() as u16
+}
+
+impl<T> Worker<T>
+where T: Serialize + Deserialize + Clone + Send + 'static + Debug {
+
     pub fn new(name: &str, ip: &str, port: u32) -> Result<Worker<T>, Box<Error>>{
         let iw = try!(InnerWorker::new(name, ip, port));
         Ok(Worker{inner_worker: iw})
+    }
+
+    /// Создает воркера из локально конфига (.worker_config).
+    /// Конфиг должен находится рядом
+    /// Если конфиг или секция воркера в конфиге будет отсутствовать,
+    /// то будет создан конфиг\секция с случайным доступным портом.
+    /// #Arguments
+    /// * `worker_name` - имя воркера
+    pub fn from_config(worker_name: &str) -> Result<Worker<T>, Box<Error>> {
+        let file_name = ".worker_config";
+
+        // if config does not exist
+        if !is_exist_ini_config() {
+            Ini::new().write_to_file(file_name);
+        }
+        let mut conf_file = try!(Ini::load_from_file(file_name));
+        let mut cf: Ini = conf_file;
+
+        // if config does not contain section with worker name
+        if cf.section_mut(Some(worker_name)).is_none(){
+            let rand_num: u16 = get_random_available_port();
+            cf.with_section(Some(worker_name))
+              .set("port", rand_num.to_string());
+            cf.write_to_file(file_name);
+        }
+
+        let section = try!(cf.section_mut(Some(worker_name)).ok_or("not found name section"));
+        let str_port = try!(section.get("port").ok_or("not found port field"));
+        let port: u32 = try!(str_port.parse::<u32>());
+        Worker::new(worker_name, "127.0.0.1", port)
     }
 
     /// Добавляет новое значение
@@ -243,6 +294,9 @@ mod tests{
     use serde_json::Value;
     use serde_json::builder::ObjectBuilder;
     use std::fmt::Debug;
+    use ini::Ini;
+    use ini::ini::Properties;
+    use super::get_random_available_port;
 
     static IP: &'static str = "127.0.0.1";
     const PORT: u32 = 18000;
@@ -351,6 +405,34 @@ mod tests{
         assert_eq!(data0, Some(9 + 10));
         assert_eq!(data1, Some(8 + 10));
         assert_eq!(data2, Some(7 + 10));
+    }
+
+    #[test]
+    fn test_worker_from_existing_conf(){
+        let mut conf: Ini = Ini::load_from_file(".worker_config").unwrap();
+        let name = "integer_worker";
+        conf.with_section(Some(name))
+            .set("port", "7777");
+
+        let w = Worker::<i32>::from_config(name);
+        assert!(w.is_ok());
+    }
+
+    #[test]
+    fn test_worker_from_empty_conf(){
+        let mut conf: Ini = Ini::load_from_file(".worker_config").unwrap();
+        conf.clear();
+
+        let w = Worker::<i32>::from_config(name);
+        assert!(w.is_ok());
+    }
+
+    #[test]
+    fn test_get_random_port(){
+        let fst = get_random_available_port();
+        let snd = get_random_available_port();
+        println!("{}, {}", fst, snd);
+        assert!(fst != snd);
     }
 
     fn d<T: Debug>(any: T){

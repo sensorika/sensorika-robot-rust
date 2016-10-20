@@ -6,3 +6,4 @@
 Cargo.lock
 /.idea/
 /sensorika-robot-rust.iml
+/.worker_config

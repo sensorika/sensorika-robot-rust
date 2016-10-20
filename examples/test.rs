@@ -5,6 +5,7 @@
 #![allow(unused_variables)]
 #![allow(unreachable_code)]
 #![feature(rustc_macro)]
+#![feature(proc_macro)]
 
 #[macro_use]
 extern crate serde_derive;
