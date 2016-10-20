@@ -1,15 +1,17 @@
 use std::collections::LinkedList;
 
+#[derive(Debug)]
 pub struct BufferedQueue<T>{
     list: LinkedList<T>,
     size: usize
 }
 
-impl<T: Default + Clone> BufferedQueue<T>{
+impl<T: Clone> BufferedQueue<T>{
 
     /// Создает новую буферезированную очередь
     /// с размерностью `size`
-    ///
+    /// Сначала размер буффера равен 0
+    /// В процессе заполнения, буффер расширяется до `size`
     /// #Arguments
     /// * `size` - размер буфера
     ///
@@ -17,7 +19,7 @@ impl<T: Default + Clone> BufferedQueue<T>{
     /// Когда `size` == 0
     ///
     /// #Example
-    /// ```ingore
+    /// ```ignore
     /// extern crate sensorika;
     /// use sensorika::util::buffered_queue::BufferedQueue;
     ///
@@ -25,12 +27,8 @@ impl<T: Default + Clone> BufferedQueue<T>{
     /// ```
     pub fn new(size: usize) -> BufferedQueue<T>{
         assert!(size != 0);
-        let mut tmp_list: LinkedList<T> = LinkedList::new();
-        for i in 0..size {
-            tmp_list.push_front(T::default());
-        }
         BufferedQueue{
-            list: tmp_list,
+            list: LinkedList::new(),
             size: size
         }
     }
@@ -38,7 +36,7 @@ impl<T: Default + Clone> BufferedQueue<T>{
     /// Добавляет в очередь один элемент.
     /// Если очередь переполнена, то
     /// элементы, которые находятся
-    /// в конце очереди (слева) - уничтожаются.
+    /// в конце очереди (справа) - уничтожаются.
     ///
     /// # Arguments
     /// * `el` - добавляемый элемент
@@ -67,7 +65,7 @@ impl<T: Default + Clone> BufferedQueue<T>{
         }
     }
 
-    /// Возвращает N первых элементов из очереди (справа).
+    /// Возвращает N первых элементов из очереди (слева).
     /// Где N - `size`
     ///
     /// #Arguments
@@ -119,81 +117,113 @@ impl<T: Default + Clone> BufferedQueue<T>{
         }
         result
     }
-}
 
-#[test]
-fn test_push_and_take(){
-    let mut b: BufferedQueue<i32> = BufferedQueue::new(4);
-    // b = [0, 0, 0, 0]
-    b.push(10);
-    // b = [10, 0, 0, 0]
-    b.push(10);
-    // b = [10, 10, 0, 0]
-    let first_four_number = b.take(4);
-    assert_eq!(first_four_number, vec![10, 10, 0, 0]);
-}
-
-#[test]
-fn test_small_buffer(){
-    let mut b: BufferedQueue<i32> = BufferedQueue::new(1);
-    for i in 0..100_000{
-        b.push(i);
-    }
-    let first = b.take(1);
-    assert_eq!(first, vec![99_999]);
-}
-
-#[test]
-fn test_take_size(){
-    let mut b: BufferedQueue<i32> = BufferedQueue::new(100);
-    for i in 0..100{
-        assert_eq!(b.take(i).len(), i as usize);
+    pub fn size(&self) -> usize {
+        self.list.len()
     }
 }
 
-#[test]
-fn test_big_buffer(){
-    let mut b: BufferedQueue<i32> = BufferedQueue::new(1000);
-    let big_n = 10_000_000;
-    for i in 0..big_n {
-        b.push(i);
-    }
-    assert_eq!(b.take(2), vec![big_n - 1, big_n -2]);
-}
+#[cfg(test)]
+mod tests{
+    use super::BufferedQueue;
 
-#[test]
-fn test_always_same_size(){
-    for size in 1..1000{
-        let mut b: BufferedQueue<i32> = BufferedQueue::new(size);
-        for i in 0..1_000 {
+    #[test]
+    fn test_push_and_take(){
+        let mut b = BufferedQueue::<i32>::new(4);
+        b.push(0);
+        b.push(10);
+        b.push(20);
+        b.push(30);
+        b.push(40);
+        let first_four_number = b.take(4);
+        assert_eq!(first_four_number, vec![40, 30, 20, 10]);
+    }
+
+    #[test]
+    fn test_small_buffer(){
+        let mut b = BufferedQueue::<i32>::new(1);
+        for i in 0..100_000{
             b.push(i);
-            assert_eq!(b.list.len(), size);
+        }
+        let first = b.take(1);
+        assert_eq!(first, vec![99_999]);
+    }
+
+    #[test]
+    fn test_take_size(){
+        let mut b = BufferedQueue::<usize>::new(100);
+        for i in 1..100{
+            assert_eq!(b.take(i).len(), 0);
         }
     }
+
+    #[test]
+    fn test_big_buffer(){
+        let mut b = BufferedQueue::<usize>::new(1000);
+        let big_n = 10_000_000;
+        for i in 0..big_n {
+            b.push(i);
+        }
+        assert_eq!(b.take(2), vec![big_n - 1, big_n -2]);
+    }
+
+    #[test]
+    fn test_take_all(){
+        let size = 10;
+        let mut buffer = BufferedQueue::<usize>::new(size);
+        for i in 0..size+1{
+            buffer.push(i);
+        }
+        assert_eq!(buffer.take_all().len(), size);
+    }
+
+    #[test]
+    fn test_list_size(){
+        let size = 10;
+        let mut buffer = BufferedQueue::<usize>::new(size);
+        for i in 0..size+1{
+            buffer.push(i);
+        }
+        assert_eq!(buffer.size(), size as usize);
+    }
+
+    #[test]
+    fn test_all(){
+        let mut buffer = BufferedQueue::<usize>::new(10);
+        buffer.push(1);
+        buffer.push(2);
+        buffer.push(3);
+        let xs = buffer.take(3);
+        assert_eq!(xs, vec![3, 2, 1]);
+        assert_eq!(xs.len() as u32, 3);
+    }
+
+    #[test]
+    fn test_growing(){
+        let n = 4;
+        let mut buffer = BufferedQueue::<u32>::new(n);
+        for i in 0..10 {
+            if i < n {
+                assert_eq!(buffer.size(), i);
+            }else{
+                assert_eq!(buffer.size(), n);
+            }
+            buffer.push(i as u32);
+        }
+    }
+
+    #[test]
+    fn test_take_safe(){
+        let n = 4;
+        let mut buffer = BufferedQueue::<u32>::new(n);
+        for i in 0..5 {
+            buffer.push(i);
+        }
+        assert_eq!(buffer.take_all(), vec![4,3,2,1]);
+        let _ = buffer.take_all();
+        assert_eq!(buffer.take_all(), vec![4,3,2,1]);
+        let _ = buffer.take(2);
+        assert_eq!(buffer.take_all(), vec![4,3,2,1]);
+    }
 }
 
-#[test]
-fn test_take_all(){
-    let size = 10;
-    let mut buffer: BufferedQueue<i32> = BufferedQueue::new(size);
-    assert_eq!(buffer.take_all().len(), size);
-}
-
-#[test]
-fn test_list_size(){
-    let size = 10;
-    let mut buffer: BufferedQueue<i32> = BufferedQueue::new(size);
-    assert_eq!(buffer.list.len(), size as usize);
-}
-
-#[test]
-fn test_all(){
-    let n = 4;
-    let mut buffer: BufferedQueue<i32> = BufferedQueue::new(10);
-    buffer.push(1);
-    buffer.push(2);
-    buffer.push(3);
-    let xs = buffer.take(n);
-    assert_eq!(xs, vec![3, 2, 1, 0]);
-    assert_eq!(xs.len() as u32, n);
-}
