@@ -420,6 +420,7 @@ mod tests{
 
     #[test]
     fn test_worker_from_empty_conf(){
+        let name = "integer_worker";
         let mut conf: Ini = Ini::load_from_file(".worker_config").unwrap();
         conf.clear();
 
